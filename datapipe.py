@@ -18,4 +18,5 @@ def download_GAIA():
 
 # download_rawcands('.','test.fit')
 
-download_GAIA()
+if __name__ == '__main__':
+	download_GAIA()

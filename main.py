@@ -11,11 +11,16 @@ from astropy.table import Table, unique
 import pyvo as vo
 
 
+from datapipe import download_GAIA
+
 class Window(QMainWindow):
+
+	def loadData(self):
+		download_GAIA()
 
 	@pyqtSlot()
 	def on_click(self):
-		self.open()
+		self.loadData()
 
 	def open(self):
 		path = QFileDialog.getOpenFileName(self, 'Open a file', '','All Files (*.*)')
@@ -34,8 +39,8 @@ class Window(QMainWindow):
 
 		self.setGeometry(300, 300, 600, 400)
 		self.setWindowTitle("PyQt5 window")
-		button = QPushButton('Load Data', self)
-		button.setToolTip('This is an example button')
+		button = QPushButton('Download Data', self)
+		button.setToolTip('This will download data from GAIA servers')
 		button.move(100,70)
 
 
