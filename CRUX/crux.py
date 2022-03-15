@@ -1,3 +1,4 @@
+import os
 import kivy
 kivy.require('1.0.6')  # replace with your current kivy version !
 
@@ -13,11 +14,84 @@ from kivy.clock import Clock
 from kivy.animation import Animation
 from kivy.uix.screenmanager import Screen
 
+from kivy.uix.floatlayout import FloatLayout
+from kivy.factory import Factory
+from kivy.properties import ObjectProperty
+from kivy.uix.popup import Popup
+import pandas as pd
+chunksize = 10 ** 8
+
+class LoadDialog(FloatLayout):
+    load = ObjectProperty(None)
+    cancel = ObjectProperty(None)
+
+
+class SaveDialog(FloatLayout):
+    save = ObjectProperty(None)
+    text_input = ObjectProperty(None)
+    cancel = ObjectProperty(None)
+
+
+class ErrorDialog(FloatLayout):
+    okay = ObjectProperty(None)
+
+
+
+Factory.register('LoadDialog', cls=LoadDialog)
+Factory.register('SaveDialog', cls=SaveDialog)
+Factory.register('ErrorDialog', cls=ErrorDialog)
+
+
 
 
 
 class CruxScreen(Screen):
     fullscreen = BooleanProperty(False)
+    loadfile = ObjectProperty(None)
+    savefile = ObjectProperty(None)
+    text_input = ObjectProperty(None)
+
+    def dismiss_popup(self):
+        self._popup.dismiss()
+
+    def show_load(self):
+        content = LoadDialog(load=self.load, cancel=self.dismiss_popup)
+        self._popup = Popup(title="Load file", content=content,
+                            size_hint=(0.9, 0.9))
+        self._popup.open()
+
+    def show_error(self):
+        content = ErrorDialog(okay=self.dismiss_popup)
+
+        self._popup = Popup(title="CRUX ERROR", content=content,
+                            size_hint=(0.9, 0.9))
+        self._popup.open()
+
+    def show_save(self):
+        content = SaveDialog(save=self.save, cancel=self.dismiss_popup)
+        self._popup = Popup(title="Save file", content=content,
+                            size_hint=(0.9, 0.9))
+        self._popup.open()
+
+    def load(self, path, filename):
+        selected_file = os.path.join(path, filename[0])
+        print("/CRUX/LOG> LOADING FILE:",selected_file)
+
+        if not selected_file.lower().endswith(('.csv', '.CSV')):
+            self.show_error()
+            # self.dismiss_popup()
+            return
+
+        for chunk in pd.read_csv(selected_file, chunksize=chunksize):
+            print(chunk)
+
+        self.dismiss_popup()
+
+    def save(self, path, filename):
+        with open(os.path.join(path, filename), 'w') as stream:
+            stream.write(self.text_input.text)
+
+        self.dismiss_popup()
 
     def add_widget(self, *args, **kwargs):
         if 'content' in self.ids:

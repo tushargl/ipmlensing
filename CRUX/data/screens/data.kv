@@ -1,24 +1,73 @@
 CruxScreen:
     name: 'Data'
     fullscreen: True
-
     BoxLayout:
         size_hint_y: None
-        height: '48dp'
+        height: 30
+        Button:
+            text: 'Load'
+            on_release: root.show_load()
+        Button:
+            text: 'Save'
+            on_release: root.show_save()
 
-        ToggleButton:
-            text: 'Icon'
-            state: 'down'
-            group: 'filechooser'
-            on_release: filechooser.view_mode = 'icon'
+<LoadDialog>:
+    BoxLayout:
+        size: root.size
+        pos: root.pos
+        orientation: "vertical"
+        FileChooserListView:
+            id: filechooser
 
-        ToggleButton:
-            text: 'List'
-            group: 'filechooser'
-            on_release: filechooser.view_mode = 'list'
+        BoxLayout:
+            size_hint_y: None
+            height: 30
+            Button:
+                text: "Cancel"
+                on_release: root.cancel()
 
-    FileChooser:
-        id: filechooser
-        
-        FileChooserIconLayout
-        FileChooserListLayout
+            Button:
+                text: "Load"
+                on_release: root.load(filechooser.path, filechooser.selection)
+
+<SaveDialog>:
+    text_input: text_input
+    BoxLayout:
+        size: root.size
+        pos: root.pos
+        orientation: "vertical"
+        FileChooserListView:
+            id: filechooser
+            on_selection: text_input.text = self.selection and self.selection[0] or ''
+
+        TextInput:
+            id: text_input
+            size_hint_y: None
+            height: 30
+            multiline: False
+
+        BoxLayout:
+            size_hint_y: None
+            height: 30
+            Button:
+                text: "Cancel"
+                on_release: root.cancel()
+
+            Button:
+                text: "Save"
+                on_release: root.save(filechooser.path, text_input.text)
+<ErrorDialog>:
+    BoxLayout:
+        size: root.size
+        pos: root.pos
+        orientation: "vertical"
+        FileChooserListView:
+            id: filechooser
+        BoxLayout:
+            size_hint_y: None
+            height: 30
+            Label:
+                text: "CRUX ERROR! SEE CONSOLE FOR LOGS!"
+            Button:
+                text: "Okay"
+                on_release: root.okay()
