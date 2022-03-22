@@ -7,162 +7,187 @@ from matplotlib.path import Path
 import matplotlib.path as mpath
 
 
-# STAR_DATAFRAME = pd.read_csv(sys.argv[1], header=None)
-# print("/CRUX/LOG> LOADED DATAFRAME SHAPE:",STAR_DATAFRAME.shape)
-# # print(STAR_DATAFRAME.loc[[0]])
-
-# STAR_ARR = STAR_DATAFRAME.to_numpy()
-
-# print("/CRUX/LOG> NUMPY ARRAY SHAPE:",STAR_ARR.shape)
-# # print(STAR_ARR)
-
-
 import numpy as np
-import  mpl_toolkits.axisartist.angle_helper as angle_helper
-import matplotlib.cm as cmap
-from matplotlib.projections import PolarAxes
-from matplotlib.transforms import Affine2D
 
-from mpl_toolkits.axisartist import SubplotHost
+from OpenGL.GLUT import *
+from OpenGL.GLU import *
+from OpenGL.GL import *
+import sys
+import math
+# import pygame 
+import numpy as np
+from sklearn.preprocessing import normalize
 
-from mpl_toolkits.axisartist import GridHelperCurveLinear
-
-
-def curvelinear_test2(fig, rect=111):
-    """
-    polar projection, but in a rectangular box.
-    """
-
-    # see demo_curvelinear_grid.py for details
-    tr = Affine2D().translate(0,90) + Affine2D().scale(np.pi/180., 1.) + PolarAxes.PolarTransform()
-
-    extreme_finder = angle_helper.ExtremeFinderCycle(10, 60,
-                                                     lon_cycle = 360,
-                                                     lat_cycle = None,
-                                                     lon_minmax = None,
-                                                     lat_minmax = (-90, np.inf),
-                                                     )
-
-    grid_locator1 = angle_helper.LocatorHMS(12) #changes theta gridline count
-    tick_formatter1 = angle_helper.FormatterHMS()
-
-    grid_helper = GridHelperCurveLinear(tr,
-                                        extreme_finder=extreme_finder,
-                                        grid_locator1=grid_locator1,
-                                        tick_formatter1=tick_formatter1
-                                        )
-
-
-    ax1 = SubplotHost(fig, rect, grid_helper=grid_helper)
-
-    # make ticklabels of right and top axis visible.
-    ax1.axis["right"].major_ticklabels.set_visible(True)
-    ax1.axis["top"].major_ticklabels.set_visible(True)
-    ax1.axis["bottom"].major_ticklabels.set_visible(True) #Turn off? 
-    # let right and bottom axis show ticklabels for 1st coordinate (angle)
-    ax1.axis["right"].get_helper().nth_coord_ticks=0
-    ax1.axis["bottom"].get_helper().nth_coord_ticks=0
+from quaternion import Quaternion as qt
 
 
 
-    fig.add_subplot(ax1)
-
-    grid_helper = ax1.get_grid_helper()
-
-    # You may or may not need these - they set the view window explicitly rather than using the
-    # default as determined by matplotlib with extreme finder.
-    ax1.set_aspect(1.)
-    ax1.set_xlim(-4,25) # moves the origin left-right in ax1
-    ax1.set_ylim(-3, 30) # moves the origin up-down
-
-    ax1.set_ylabel('Declination')
-    ax1.set_xlabel('Ascension')
-    ax1.grid(True)
-    #ax1.grid(linestyle='--', which='x') # either keyword applies to both
-    #ax1.grid(linestyle=':', which='y')  # sets of gridlines
-
-    return ax1,tr
-    
-    
-def skip_comments(f):
-    '''
-    Read lines that DO NOT start with a # symbol.
-    '''
-    for line in f:
-        if not line.strip().startswith('#'):
-            yield line
-            
-def get_data_bb():
-    '''RA, DEC data file.
-    '''
-
-    # Path to data file.
-    out_file = 'test.dat'
-
-    # Read data file
-    with open(out_file) as f:
-        ra, dec = [], []
-
-        for line in skip_comments(f):
-            ra.append(float(line.split()[0]))
-            dec.append(float(line.split()[1]))
-
-    return ra, dec
+position = [1,1,1]
+heading = []
+position = [position[0],position[1],position[2]]
 
 
-import matplotlib.pyplot as plt
-fig = plt.figure(1, figsize=(5, 5))
-fig.clf()
+class Haal(object):
+    def __init__(self):
+        self.rotation_Q = qt.from_axisangle(0.0,(0,0,1))
+        self.position_P = [0,0,0]
+    def locate(self,x,y,z):
+        self.position_P = [x,y,z]
 
-ax1, tr = curvelinear_test2(fig,121) # tr.transform_point((x, 0)) is always (0,0)
-                            # => (theta, r) in but (r, theta) out...             
+class Thing(object):
+    def __init__(self,draw_function,draw_args):
+        self.draw_function = draw_function
+        self.draw_args = draw_args
+        self.haal = Haal()
+    def make(self):
+        # Q_filterred = self.Q_filterred
+        w, v = self.haal.rotation_Q.get_axisangle()
+        w_degrees = w*180/math.pi
+        location = self.haal.position_P
+        glPushMatrix()
+        glTranslatef(location[0],location[1],location[2])
+        print(location)
+        glRotatef(w_degrees,v[0],v[1],v[2])
+        self.draw_function(*self.draw_args)
+        glPopMatrix()
+    def locate(self,x,y,z):
+        self.haal.locate(x,y,z)
 
-# Read RA, DEC data from file.
-ra, dec = get_data_bb()
-xx = zip(ra, dec)
-for k in xx:
-	print(k)
-out_test = list(xx)
+class Scene(object):
+    def __init__(self):
+        self.objects = []
+        self.scenes = []
+        self.scales = []
+        self.coordinates = [0.,0.,0.]
+    def add_object(self,thing):
+        self.objects.append(thing)
+    def add_scene(self,scene,x,y,z):
+        self.scenes.append(scene)
+        self.scales.append([x,y,z])
+    def fix_position(self,coords):
+        self.coordinates = coords
+    def make_scene(self,depth=0):
+        if depth > 10:
+            return
+        glPushMatrix()
+        glTranslatef(self.coordinates[0],self.coordinates[1],self.coordinates[2])
+        for o in self.objects:
+            print(o)
+            o.make()
+        for s in range(len(self.scenes)):
+            scale = self.scales[s]
+            glPushMatrix()
+            glScalef(scale[0],scale[1],scale[2])
+            self.scenes[s].make_scene(depth+1)
+            glPopMatrix()
+        glPopMatrix()
+# _CUBE_1 = Thing(glutWireCube,(.1,))
+# _CUBE_2 = Thing(glutWireCube,(.1,))
+# _CUBE_2.locate(.1,.0,.0)
 
-# Use this block to generate colored points with a colorbar.
-cm = plt.cm.get_cmap('RdYlBu_r')
-z = np.random.random((len(ra), 1))  # RGB values
 
-SC = ax1.scatter(out_test[:,0], #ax1 is a global
-            out_test[:,1],
-            marker = 'o',
-            c=z,
-            cmap=cm,
-            lw = 0.,
-            zorder=9) #on top of gridlines
-            
-# Colorbar
-cbar = plt.colorbar(SC, shrink=1., pad=0.1)
-cbar.ax.tick_params(labelsize=8)
-cbar.set_label('colorbar', fontsize=8)
 
-ax2, tr = curvelinear_test2(fig,122) # tr.transform_point((x, 0)) is always (0,0)
-                            # => (theta, r) in but (r, theta) out...             
+_CELESTIAL_SPHERE_ = Thing(glutWireSphere,(.1,10,10))
 
-# Read RA, DEC data from file.
-ra, dec = get_data_bb()
-out_test = tr.transform(zip(ra, dec))
+_STAR_  = Thing(glutSolidSphere,(.01,20,20))
+_STAR_.locate(.1,.0,.0)
 
-# Use this block to generate colored points with a colorbar.
-cm = plt.cm.get_cmap('RdYlBu_r')
-z = np.random.random((len(ra), 1))  # RGB values
+def plane(x,y):
+    glScalef(x,y,0.01)
+    glutWireCube(1.)
+# _PLANE_ = Thing(plane,(.2,.2))
+# _PLANE_.locate()
+SCENE_1 = Scene()
+# SCENE_1.add_object(_CUBE_1)
+SCENE_1.add_object(_CELESTIAL_SPHERE_)
+SCENE_1.add_object(_STAR_)
+# SCENE_1.add_object(_PLANE_)
+SCENE_1.fix_position([0,0,0])
 
-SC = ax2.scatter(out_test[:,0], #ax1 is a global
-            out_test[:,1],
-            marker = 'o',
-            c=z,
-            cmap=cm,
-            lw = 0.,
-            zorder=9) #on top of gridlines
-            
-# Colorbar
-cbar = plt.colorbar(SC, shrink=1., pad=0.1)
-cbar.ax.tick_params(labelsize=8)
-cbar.set_label('colorbar', fontsize=8)
+SCENE_VIEW_FROM_EARTH = Scene()
+SCENE_VIEW_FROM_EARTH.add_scene(SCENE_1,1,1,1)
 
-plt.show()
+SCENE_TABLE = Scene()
+
+
+class Room(object):
+    def __init__(self):
+        self.window_name = "Empty"
+        self.camera_heading = [0,0,0]
+        self.window_function()
+    def update(self):
+        self.draw_function()
+    def look_at_scene(self):
+        # glMatrixMode(GL_PROJECTION)
+        d = math.sqrt(sum([x*x for x in position]))
+        glMatrixMode(GL_PROJECTION)
+        glLoadIdentity()
+        gluPerspective(40.,1.,d/100.,4*d)
+        glMatrixMode(GL_MODELVIEW)
+        glLoadIdentity()
+        gluLookAt(position[0],position[1],position[2],
+          0,0,0,
+          0,0,1)
+    def draw_room(self):
+        glPushMatrix()
+        # glTranslatef(position[0],position[1],position[2])
+        glutWireCube(1.0)
+        glPopMatrix()
+    def keyboard_funtion(self,*args):
+        global position
+        d = math.sqrt(sum([x*x for x in position]))
+        key = str(args[0],'utf-8')
+        print(key)
+        if key == ' ':
+            snap_zero = True
+        if key == 'w':
+            position = [position[0]*(1-0.1),position[1]*(1-0.1),position[2]*(1-0.1)]
+        if key == 's':
+            position = [position[0]*(1+0.1),position[1]*(1+0.1),position[2]*(1+0.1)]
+        if key == 'd':
+            position = np.add(position,np.cross(position,[0,0,1])*0.1)
+        if key == 'a':
+            position = np.subtract(position,np.cross(position,[0,0,1])*0.1)
+        if key == 'r':
+            position = [2,2,0]
+        print(position)
+    def draw_display(self):
+        glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT)
+        color = [1.0,0.,0.,1.]
+        self.look_at_scene()
+        glPushMatrix()
+        self.draw_room()
+        SCENE_VIEW_FROM_EARTH.make_scene()
+        glPopMatrix()
+        glutSwapBuffers()
+        return
+    def window_function(self):
+        glutInit(sys.argv)
+        glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH)
+        glutInitWindowSize(300,300)
+        glutCreateWindow(self.window_name)
+
+        glClearColor(0.,0.,0.,1.)
+        glShadeModel(GL_SMOOTH)
+        glEnable(GL_DEPTH_TEST)
+        glutKeyboardFunc(self.keyboard_funtion)
+        glutDisplayFunc(self.draw_display)
+        glMatrixMode(GL_PROJECTION)
+        gluPerspective(40.,1.,1.,40.)
+        glMatrixMode(GL_MODELVIEW)
+        gluLookAt(0,0,10,
+                  0,0,0,
+                  0,1,1)
+        glPushMatrix()
+        # glutMainLoop()
+        return
+    def draw_function(self):
+        glutPostRedisplay()
+        glutMainLoopEvent()
+
+
+R = Room()
+while 21:
+    R.update()
+    for i in range(1000000):
+        pass
