@@ -21,6 +21,79 @@ from sklearn.preprocessing import normalize
 from quaternion import Quaternion as qt
 
 
+import itertools
+
+import math
+
+def XYZ_from_ra_dec(ra,dec,radius):
+    x = radius * math.cos(ra) *math.sin(dec)
+    y = radius * math.sin(ra) *math.sin(dec)
+    z = radius * math.cos(dec)
+
+    return (x,y,z)
+
+# PROCESS
+
+
+
+STAR_DATAFRAME = pd.read_csv(sys.argv[1], header=None)
+print("/CRUX/LOG> LOADED DATAFRAME SHAPE:",STAR_DATAFRAME.shape)
+# print(STAR_DATAFRAME.loc[[0]])
+
+STAR_ARR = STAR_DATAFRAME.to_numpy()
+
+print("/CRUX/LOG> NUMPY ARRAY SHAPE:",STAR_ARR.shape)
+# print(STAR_ARR)
+
+def oneStarPair(n):
+    return STAR_ARR[n]
+
+
+def oneStarColumn(m):
+    return STAR_ARR[:,m]
+
+
+total_headings = oneStarPair(0)
+basic_hpm_tops = total_headings[:4]
+
+
+print(total_headings)
+print(basic_hpm_tops)
+
+all_ra_hpm = oneStarColumn(2)
+all_dec_hpm = oneStarColumn(3)
+
+print(all_ra_hpm)
+print(all_dec_hpm)
+
+coords = zip(all_ra_hpm,all_dec_hpm)
+# for x in range(0,10):
+#     print(oneStarPair(x))
+coords = list(itertools.islice(coords, 5000))
+
+coords = coords[1:]
+print(coords)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 position = [1,1,1]
 heading = []
@@ -89,8 +162,6 @@ class Scene(object):
 
 _CELESTIAL_SPHERE_ = Thing(glutWireSphere,(.1,10,10))
 
-_STAR_  = Thing(glutSolidSphere,(.01,20,20))
-_STAR_.locate(.1,.0,.0)
 
 def plane(x,y):
     glScalef(x,y,0.01)
@@ -100,7 +171,23 @@ def plane(x,y):
 SCENE_1 = Scene()
 # SCENE_1.add_object(_CUBE_1)
 SCENE_1.add_object(_CELESTIAL_SPHERE_)
-SCENE_1.add_object(_STAR_)
+
+
+
+for i in coords:
+    x,y,z = XYZ_from_ra_dec(float(i[0]),float(i[1]),0.1)
+    _STAR_  = Thing(glutSolidSphere,(.001,20,20))
+    _STAR_.locate(x,y,z)
+    SCENE_1.add_object(_STAR_)
+    print(x,y,z)
+
+    
+
+
+
+
+
+
 # SCENE_1.add_object(_PLANE_)
 SCENE_1.fix_position([0,0,0])
 
@@ -185,9 +272,13 @@ class Room(object):
         glutPostRedisplay()
         glutMainLoopEvent()
 
+# iloc[1]
 
 R = Room()
+R.update()
 while 21:
     R.update()
-    for i in range(1000000):
-        pass
+    # for i in range(1000000):
+    #     pass
+
+
