@@ -18,8 +18,34 @@ from kivy.uix.floatlayout import FloatLayout
 from kivy.factory import Factory
 from kivy.properties import ObjectProperty
 from kivy.uix.popup import Popup
+from kivy.uix.behaviors import FocusBehavior
+from kivy.uix.recycleview.layout import LayoutSelectionBehavior
+from kivy.uix.recyclegridlayout import RecycleGridLayout
+from kivy.uix.recycleview.views import RecycleDataViewBehavior
+
+
 import pandas as pd
 chunksize = 10 ** 8
+
+
+STAR_DATAFRAME = None
+
+
+
+def print_full(x):
+    pd.set_option('display.max_rows', None)
+    pd.set_option('display.max_columns', None)
+    pd.set_option('display.width', 2000)
+    pd.set_option('display.float_format', '{:20,.2f}'.format)
+    pd.set_option('display.max_colwidth', None)
+    print(x)
+    pd.reset_option('display.max_rows')
+    pd.reset_option('display.max_columns')
+    pd.reset_option('display.width')
+    pd.reset_option('display.float_format')
+    pd.reset_option('display.max_colwidth')
+
+
 
 class LoadDialog(FloatLayout):
     load = ObjectProperty(None)
@@ -37,9 +63,54 @@ class ErrorDialog(FloatLayout):
 
 
 
+class TextInputPopup(Popup):
+    obj = ObjectProperty(None)
+    obj_text = StringProperty("")
+
+    def __init__(self, obj, **kwargs):
+        super(TextInputPopup, self).__init__(**kwargs)
+        self.obj = obj
+        self.obj_text = obj.text
+
+
+class SelectableRecycleGridLayout(FocusBehavior, LayoutSelectionBehavior,
+                                  RecycleGridLayout):
+    ''' Adds selection and focus behaviour to the view. '''
+
+
+class SelectableButton(RecycleDataViewBehavior, Button):
+    ''' Add selection support to the Button '''
+    index = None
+    selected = BooleanProperty(False)
+    selectable = BooleanProperty(True)
+
+    def refresh_view_attrs(self, rv, index, data):
+        ''' Catch and handle the view changes '''
+        self.index = index
+        return super(SelectableButton, self).refresh_view_attrs(rv, index, data)
+
+    # def on_touch_down(self, touch):
+    #     ''' Add selection on touch down '''
+    #     if super(SelectableButton, self).on_touch_down(touch):
+    #         return True
+    #     if self.collide_point(*touch.pos) and self.selectable:
+    #         return self.parent.select_with_touch(self.index, touch)
+
+    def apply_selection(self, rv, index, is_selected):
+        ''' Respond to the selection of items in the view. '''
+        self.selected = is_selected
+
+    # def on_press(self):
+    #     popup = TextInputPopup(self)
+    #     popup.open()
+
+    # def update_changes(self, txt):
+    #     self.text = txt
+
 Factory.register('LoadDialog', cls=LoadDialog)
 Factory.register('SaveDialog', cls=SaveDialog)
 Factory.register('ErrorDialog', cls=ErrorDialog)
+Factory.register('SelectableRecycleGridLayout', cls=SelectableRecycleGridLayout)
 
 
 
@@ -50,6 +121,11 @@ class CruxScreen(Screen):
     loadfile = ObjectProperty(None)
     savefile = ObjectProperty(None)
     text_input = ObjectProperty(None)
+    data_items = ListProperty([])
+    n_cols = NumericProperty()
+    n_items = NumericProperty()
+    n_rows = NumericProperty()
+    column_names = ListProperty([])
 
     def dismiss_popup(self):
         self._popup.dismiss()
@@ -74,18 +150,27 @@ class CruxScreen(Screen):
         self._popup.open()
 
     def load(self, path, filename):
+        self.dismiss_popup()
         selected_file = os.path.join(path, filename[0])
         print("/CRUX/LOG> LOADING FILE:",selected_file)
 
+
         if not selected_file.lower().endswith(('.csv', '.CSV')):
-            self.show_error()
             # self.dismiss_popup()
-            return
+            self.show_error()
+            # return
+            pass
+        else:
+            row_df = pd.read_csv(selected_file, header=None)
+            print("/CRUX/LOG> LOADED DATAFRAME:",row_df)
+            self.n_cols = row_df.shape[1]
+            self.n_rows = row_df.shape[0]
+            print("/CRUX/LOG> LOADED DATAFRAME SHAPE:",row_df.shape)
+            # vals = row_df.values.tolist()
+            # print(vals)
+            # self.add_table(self,vals)
+            STAR_DATAFRAME = row_df
 
-        for chunk in pd.read_csv(selected_file, chunksize=chunksize):
-            print(chunk)
-
-        self.dismiss_popup()
 
     def save(self, path, filename):
         with open(os.path.join(path, filename), 'w') as stream:
