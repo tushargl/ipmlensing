@@ -73,7 +73,8 @@ class CRUX_EYEPIECE(object):
 		dec_diff = star.dec - self.dec_target
 
 		return (ra_diff,dec_diff)
-
+	def centring(self):
+		pass
 	def add_star(self,star):
 		self.stars.append(star)
 		return True
