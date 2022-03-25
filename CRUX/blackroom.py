@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 import math
-
+from quaternion import normalize
 
 
 def plot2Stars(s1,s2,timestamp):
@@ -37,9 +37,13 @@ class CRUX_STAR(object):
 		self.x = 0
 		self.y = 0
 		self.ra = 0
+		self.ra_err = 0
 		self.dec = 0
+		self.dec_err = 0
 		self.pm_ra = 1
+		self.pm_ra_err = 1
 		self.pm_dec = 1
+		self.pm_dec_err = 1
 
 	def move(self,x,y):
 		self.x = x
@@ -47,6 +51,17 @@ class CRUX_STAR(object):
 	def set_in_sky(self,ra,dec):
 		self.ra = float(ra)
 		self.dec = float(dec)
+	def set_motion_params(self,params):
+		self.ra 		= float(params[0])
+		self.ra_err 	= float(params[1])/3600
+		self.dec 		= float(params[2])
+		self.dec_err 	= float(params[3])/3600
+		self.pm_ra 		= float(params[4])
+		self.pm_ra_err 	= float(params[5])
+		self.pm_dec 	= float(params[6])
+		self.pm_dec_err = float(params[7])
+
+
 	def pma(self,pm_ra,pm_dec):
 		self.pm_ra = float(pm_ra)
 		self.pm_dec = float(pm_dec)
@@ -82,9 +97,10 @@ class CRUX_STAR(object):
 
 
 
-		return (self.pm_ra,self.pm_dec)
+		return (nm_ra,nm_dec)
 	def __str__(self):
-		return "RA: {:.10f} :  DEC :{:.10f} ".format(self.ra,self.dec)
+		# return "RA: {:.10f} :  DEC :{:.10f} ".format(self.ra,self.dec)
+		return "RA: {0} :  DEC :{1} \n".format(self.ra,self.dec)+"ra_err: {0} :  dec_err :{1} \n".format(self.ra_err,self.dec_err)+"pm_ra: {0} :  pm_dec :{1} \n".format(self.pm_ra,self.pm_dec)+"pm_ra_err: {0} :  pm_dec_err :{1} \n".format(self.pm_ra_err,self.pm_dec_err)
 
 
 
@@ -241,13 +257,24 @@ class CRUX_EYEPIECE(object):
 		for star in self.stars:
 			proj = self.projectStar(star,timestamp)
 			cv2.circle(img,proj, 5, (255,255,255), -1)
+			# cv2.circle(img,proj, 5, (255,255,255), -1)
 
 			# unit_movement = star.norm_movement()
-			unit_movement = star.scaled_movement(10)
+			unit_movement = star.scaled_movement(1000)
 
-			pm_proj = (int(proj[0] + unit_movement[0]*100), int(proj[1] + unit_movement[1]*100))
+			pm_after_years = 100
+
+			del_ra = pm_after_years*star.pm_ra*self.fov_ra*unit_movement[0]
+			del_dec = pm_after_years*star.pm_dec*self.fov_dec*unit_movement[0]
 
 
+			pm_proj = (int(proj[0] + del_ra), int(proj[1] + del_dec))
+			error_ellipse =  list(np.array([star.ra_err,star.dec_err]))
+			error_ellipse =  (int(error_ellipse[0]*self.pp_ra),int(error_ellipse[1]*self.pp_dec))
+			cv2.ellipse(img, proj, error_ellipse, 0,0.0, 360, (255,255,255), 1)
+			print("error ellipse",error_ellipse)
+			print("proper motion unit",unit_movement)
+			print("proper motion projected",pm_proj)
 			cv2.line(img, proj, pm_proj, (0,255,0), thickness=line_thickness)
 			# img = star.plot_self(img,timestamp)
 		return img
@@ -299,11 +326,17 @@ class CRUX_EYEPIECE(object):
 		ra_span = max_ra - min_ra
 		dec_span = max_dec - min_dec
 
+		self.fov_ra = ra_span
+		self.fov_dec = dec_span
 
-		self.fov_ra = ra_span*1.5
-		self.fov_dec = dec_span*1.5
 
+		if self.fov_ra > self.fov_dec:
+			self.fov_dec = self.fov_ra
+		else:
+			self.fov_ra = self.fov_dec
 
+		self.fov_ra = self.fov_ra*10.5
+		self.fov_dec = self.fov_dec *10.5
 
 		# ra_span = 2
 		# dec_span =2 

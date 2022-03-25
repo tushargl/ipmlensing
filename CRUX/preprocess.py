@@ -102,15 +102,10 @@ for i in range(1,len(motion_hpm_tops)):
 
 
 	s_fg = CRUX_STAR()
-
-	s_fg.set_in_sky(star_gaia_fg_motion[0],star_gaia_fg_motion[2])
-	s_fg.pma(star_gaia_fg_motion[4],star_gaia_fg_motion[6])
-
+	s_fg.set_motion_params(star_gaia_fg_motion)
+	
 	s_bg = CRUX_STAR()
-
-	s_bg.set_in_sky(star_gaia_bg_motion[0],star_gaia_bg_motion[2])
-	s_bg.pma(star_gaia_bg_motion[4],star_gaia_bg_motion[6])
-
+	s_bg.set_motion_params(star_gaia_bg_motion)
 
 
 
