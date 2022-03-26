@@ -52,14 +52,23 @@ class CRUX_STAR(object):
 		self.ra = float(ra)
 		self.dec = float(dec)
 	def set_motion_params(self,params):
-		self.ra 		= float(params[0])
-		self.ra_err 	= float(params[1])/3600
-		self.dec 		= float(params[2])
-		self.dec_err 	= float(params[3])/3600
-		self.pm_ra 		= float(params[4])
-		self.pm_ra_err 	= float(params[5])
-		self.pm_dec 	= float(params[6])
-		self.pm_dec_err = float(params[7])
+		
+		# POSITION
+
+		self.ra 		= float(params[0])  #DEGREES -> DEGREES
+		self.ra_err 	= float(params[1])/3600  #ARCSECOND -> DEGREES
+		
+		self.dec 		= float(params[2]) #DEGREES -> DEGREES
+		self.dec_err 	= float(params[3])/3600 #ARCSECOND -> DEGREES
+		
+
+		# MOTION
+		self.pm_ra 		= float(params[4])/1000 #MAS/yr -> AS/yr
+		self.pm_ra_err 	= float(params[5])/100  #PERCENT -> UNITLESS
+		
+
+		self.pm_dec 	= float(params[6])/1000  #MAS/ys -> AS/ys
+		self.pm_dec_err = float(params[7])/100  #PERCENT -> UNITLESS
 
 
 	def pma(self,pm_ra,pm_dec):
@@ -71,8 +80,78 @@ class CRUX_STAR(object):
 		# print(self.x_v)
 		# print(self.y_v)
 		# print(timestamp)
-		f_ra = self.ra + self.pm_ra*timestamp*0.001
-		f_dec = self.dec + self.pm_dec*timestamp*0.001
+
+		# TIMESTAMP in YEARS
+
+		# timestamp = timestamp
+
+		f_ra = self.ra + self.pm_ra*timestamp
+		f_dec = self.dec + self.pm_dec*timestamp
+		return (f_ra,f_dec)
+	def future_error(self,timestamp,e_margin = 10):
+		# print(self.ra)
+		# print(self.dec)
+		# print(self.x_v )
+		# print(self.y_v)
+		# print(timestamp)
+
+		# TIMESTAMP in YEARS
+
+		# timestamp = timestamp
+
+
+		# s_to_n 
+		# s_to_n_ra
+
+		error_percent = e_margin/100.
+
+		ra_position_err_percent = np.random.normal(1.0,error_percent)
+		ra_proper_motion_err_percent = np.random.normal(1.0,error_percent)
+		dec_position_err_percent = np.random.normal(1.0,error_percent)
+		dec_proper_motion_err_percent = np.random.normal(1.0,error_percent)
+
+		print("\n\n-----------ERRORRS-----------\t\t", end = '\n\n')
+
+		print("ra_err\t\t", end = '\t')
+		print("pm_ra_err\t\t", end = '\t')
+		print("dec_err\t\t", end = '\t')
+		print("pm_dec_err\t\t")
+
+		print(self.ra_err, end = '\t')
+		print(self.pm_ra_err, end = '\t')
+		print(self.dec_err, end = '\t')
+		print(self.pm_dec_err)
+
+		print("ra_position_err_percent", end = '\t')
+		print("ra_proper_motion_err_percent", end = '\t')
+		print("dec_position_err_percent", end = '\t')
+		print("dec_proper_motion_err_percent")
+
+		print(ra_position_err_percent, end = '\t')
+		print(ra_proper_motion_err_percent, end = '\t')
+		print(dec_position_err_percent, end = '\t')
+		print(dec_proper_motion_err_percent)
+
+		# poss_ra = self.ra + ra_position_err_percent*self.ra_err
+		# poss_dec = self.dec + dec_position_err_percent*self.ra_err
+		# poss_ra = self.ra + ra_position_err_percent*self.ra_err
+		# poss_dec = self.dec + dec_position_err_percent*self.ra_err
+
+		poss_pm_ra = self.pm_ra*ra_proper_motion_err_percent
+		poss_pm_dec = self.pm_dec*dec_proper_motion_err_percent
+
+
+
+		# future_pos = self.future_pos(timestamp)
+
+		# f_ra = poss_ra + poss_pm_ra*timestamp
+		# f_dec = poss_dec + poss_pm_dec*timestamp
+
+
+		f_ra = self.ra + poss_pm_ra*timestamp
+		f_dec = self.dec + poss_pm_dec*timestamp
+
+		# print("FUTURE ERROR: ",(f_ra,f_dec))
 		return (f_ra,f_dec)
 	def plot_self(self,img,timestamp):
 		cen = self.future_pos(timestamp) 
@@ -116,65 +195,9 @@ class CRUX_EYEPIECE(object):
 		self.width = 1024
 		self.pp_ra = 102.4
 		self.pp_dec = 102.4
-
-	# def calibrate(self):
-	def draw(self,timestamp):
+	def draw_full(self,timestamp = 10,e_margin = 40):
 		# self.centring(timestamp)
-		height = self.height
-		width = self.width
-
-		img = np.zeros((height, width, 3), np.uint8)
-		# img[:, :] = [255, 255, 255]
-
-
-		row, col = 512, 512
-		cv2.circle(img,(col, row), 500, (255,255,255), 1)
-
-
-		decs = self.fov_dec
-		ras = self.fov_ra
-
-
-		line_thickness = 2
-
-		for i in range(int(decs)):
-			h_of_dec = self.height/decs
-			x1 = 0
-			y1 = int(i* h_of_dec)
-			x2 = 1024
-			y2 = int(i* h_of_dec)
-			cv2.line(img, (x1, y1), (x2, y2), (255,255,255), thickness=line_thickness)
-			curr_dec = self.dec_target - (decs/2)/3600*i
-			cv2.putText(img,curr_dec, 
-			    (x1, y1), 
-			    font, 
-			    fontScale,
-			    fontColor,
-			    thickness,
-			    lineType)
-
-
-
-		for i in range(int(ras)):
-			w_of_ra = self.width/ras
-			x1 = int(i* w_of_ra)
-			y1 = 0
-			x2 = int(i* w_of_ra)
-			y2 = 1024
-			cv2.line(img, (x1, y1), (x2, y2), (255,255,255), thickness=line_thickness)
-
-
-
-
-
-		for star in self.stars:
-			proj = self.projectStar(star,timestamp)
-			cv2.circle(img,proj, 5, (255,255,255), -1)
-			# img = star.plot_self(img,timestamp)
-		return img
-	def draw_full(self):
-		# self.centring(timestamp)
-		timestamp = 0
+		# timestamp = 10
 		height = self.height
 		width = self.width
 
@@ -198,7 +221,7 @@ class CRUX_EYEPIECE(object):
 		ras = self.fov_ra*ra_divider
 
 
-		line_thickness = 2
+		line_thickness = 1
 
 		for i in range(int(decs)):
 			n = i - decs/2 
@@ -252,17 +275,37 @@ class CRUX_EYEPIECE(object):
 
 
 
+		red = (255,0,0)
+		green = (0,255,0)
 
+		clolor = red
+		alternate = 0
 
 		for star in self.stars:
-			proj = self.projectStar(star,timestamp)
+			proj = self.projectStar(star,0)
 			cv2.circle(img,proj, 5, (255,255,255), -1)
 			# cv2.circle(img,proj, 5, (255,255,255), -1)
+			proj_errors = self.projectErrors(star,timestamp,e_margin)
+
+			if alternate == 1:
+				alternate = 0
+				color = green
+			else:
+				alternate = 1
+				color = red
+					
+			for err in proj_errors:
+				# print("ERROR LINE")
+				cv2.line(img, proj, err, (255,255,255), thickness=1)
+				cv2.circle(img,err, 2, color, 3)
+				# cv2.circle(img,err, 2, green, 3)
+
+
 
 			# unit_movement = star.norm_movement()
 			unit_movement = star.scaled_movement(1000)
 
-			pm_after_years = 100
+			pm_after_years = timestamp
 
 			del_ra = pm_after_years*star.pm_ra*self.fov_ra*unit_movement[0]
 			del_dec = pm_after_years*star.pm_dec*self.fov_dec*unit_movement[0]
@@ -278,6 +321,8 @@ class CRUX_EYEPIECE(object):
 			cv2.line(img, proj, pm_proj, (0,255,0), thickness=line_thickness)
 			# img = star.plot_self(img,timestamp)
 		return img
+	# def projectPos(self,star,timestamp):
+
 	def projectStar(self,star,timestamp):
 		# s_cen = self.
 
@@ -293,9 +338,28 @@ class CRUX_EYEPIECE(object):
 		star_y = cen_[1] + dec_diff*self.pp_dec
 
 
-		ret_cen = (int(star_x),int(star_y))
+		ret_cen = (int(star_y),int(star_x))
 		print(ret_cen)
 		return ret_cen
+	def projectErrors(self,star,timestamp,e_margin = 20):
+		# s_cen = self.
+		s_num = 50
+
+		ret_errs = []
+		for i in range(s_num):
+			star_error_ra,star_error_dec = star.future_error(timestamp,e_margin) 
+			ra_diff = star_error_ra - self.ra_target
+			dec_diff = star_error_dec - self.dec_target
+
+			cen_ = (self.width/2,self.height/2)
+
+			star_x = cen_[0] + ra_diff*self.pp_ra
+			star_y = cen_[1] + dec_diff*self.pp_dec
+			ret_errs.append((int(star_y),int(star_x)))
+
+		# ret_cen = (int(star_x),int(star_y))
+		print(ret_errs)
+		return ret_errs
 	def centring(self,timestamp):
 		if len(self.stars)< 2:
 			return

@@ -96,26 +96,26 @@ star_gaia_bg_motion = motion_bgs_tops[1]
 
 
 
-for i in range(1,len(motion_hpm_tops)):
-	star_gaia_fg_motion = motion_hpm_tops[i]
-	star_gaia_bg_motion = motion_bgs_tops[i]
+# for i in range(1,len(motion_hpm_tops)):
+# 	star_gaia_fg_motion = motion_hpm_tops[i]
+# 	star_gaia_bg_motion = motion_bgs_tops[i]
 
 
-	s_fg = CRUX_STAR()
-	s_fg.set_motion_params(star_gaia_fg_motion)
+# 	s_fg = CRUX_STAR()
+# 	s_fg.set_motion_params(star_gaia_fg_motion)
 	
-	s_bg = CRUX_STAR()
-	s_bg.set_motion_params(star_gaia_bg_motion)
+# 	s_bg = CRUX_STAR()
+# 	s_bg.set_motion_params(star_gaia_bg_motion)
 
 
 
-	EYE = CRUX_EYEPIECE()
-	EYE.add_star(s_fg)
-	EYE.add_star(s_bg)
-	# EYE.centring(0)
-	img = EYE.draw_full()
-	cv2.imshow('eyepiece image',img)
-	k = cv2.waitKey(10000) 
+# 	EYE = CRUX_EYEPIECE()
+# 	EYE.add_star(s_fg)
+# 	EYE.add_star(s_bg)
+# 	# EYE.centring(0)
+# 	img = EYE.draw_full()
+# 	cv2.imshow('eyepiece image',img)
+# 	k = cv2.waitKey(10000) 
 
 # for i in range(1000):
 # 	tick = i*0.01
@@ -123,3 +123,75 @@ for i in range(1,len(motion_hpm_tops)):
 # 	img = EYE.draw(tick)
 # 	cv2.imshow('eyepiece image',img)
 # 	k = cv2.waitKey(50) 
+
+
+
+# for i in range(1,len(motion_hpm_tops)):
+star_gaia_fg_motion = motion_hpm_tops[1]
+star_gaia_bg_motion = motion_bgs_tops[1]
+
+
+s_fg = CRUX_STAR()
+s_fg.set_motion_params(star_gaia_fg_motion)
+
+s_bg = CRUX_STAR()
+s_bg.set_motion_params(star_gaia_bg_motion)
+
+EYE = CRUX_EYEPIECE()
+EYE.add_star(s_fg)
+EYE.add_star(s_bg)
+
+
+INDEX = 1
+DATE = 0
+ERROR_SCOPE = 70
+
+
+def draw_SCOPE(INDEX,DATE,ERROR_PERCENT = 50):
+	star_gaia_fg_motion = motion_hpm_tops[INDEX]
+	star_gaia_bg_motion = motion_bgs_tops[INDEX]
+
+	s_fg = CRUX_STAR()
+	s_fg.set_motion_params(star_gaia_fg_motion)
+
+	s_bg = CRUX_STAR()
+	s_bg.set_motion_params(star_gaia_bg_motion)
+
+	EYE = CRUX_EYEPIECE()
+	EYE.add_star(s_fg)
+	EYE.add_star(s_bg)
+
+	img = EYE.draw_full(DATE,ERROR_PERCENT)
+	cv2.imshow('eyepiece image',img)
+
+
+
+
+
+def date_change(val):
+	global DATE
+	DATE = val/365
+	draw_SCOPE(INDEX,DATE,ERROR_SCOPE)
+
+def error_change(val):
+	global ERROR_SCOPE
+	ERROR_SCOPE = val
+	draw_SCOPE(INDEX,DATE,ERROR_SCOPE)
+
+
+def set_index(val):
+	global INDEX
+	INDEX = int(val)
+	draw_SCOPE(INDEX,DATE,ERROR_SCOPE)
+
+# img = EYE.draw_full(10)
+# cv2.imshow('eyepiece image',img)
+
+# windowName = 'controls'
+cv2.namedWindow('controls')
+cv2.createTrackbar('DATE', 'controls', 0, 100, date_change)
+cv2.createTrackbar('INDEX', 'controls', 1, 10000, set_index)
+cv2.createTrackbar('ERROR', 'controls', 1, 100, error_change)
+
+k = cv2.waitKey(0) 
+cv2.destroyAllWindows()
