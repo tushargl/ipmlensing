@@ -144,7 +144,11 @@ EYE.add_star(s_bg)
 
 INDEX = 1
 DATE = 0
-ERROR_SCOPE = 70
+ERROR_SCOPE = 3
+
+
+EVENT_LIST = []
+TIME_LIST = []
 
 
 def draw_SCOPE(INDEX,DATE,ERROR_PERCENT = 50):
@@ -164,6 +168,55 @@ def draw_SCOPE(INDEX,DATE,ERROR_PERCENT = 50):
 	img = EYE.draw_full(DATE,ERROR_PERCENT)
 	cv2.imshow('eyepiece image',img)
 
+def predict_and_draw_MICROLENS(INDEX,ERROR_PERCENT = 50):
+	global DATE
+	star_gaia_fg_motion = motion_hpm_tops[INDEX]
+	star_gaia_bg_motion = motion_bgs_tops[INDEX]
+
+	s_fg = CRUX_STAR()
+	s_fg.set_motion_params(star_gaia_fg_motion)
+
+	s_bg = CRUX_STAR()
+	s_bg.set_motion_params(star_gaia_bg_motion)
+
+	EYE = CRUX_EYEPIECE()
+	EYE.add_star(s_fg)
+	EYE.add_star(s_bg)
+
+	timestamp,dist = EYE.predict_cluster_closest_approach(ERROR_SCOPE)
+	print(timestamp)
+	DATE = timestamp
+	draw_SCOPE(INDEX,DATE,ERROR_SCOPE)
+
+	# img = EYE.draw_full(DATE,ERROR_PERCENT)
+	# cv2.imshow('eyepiece image',img)
+
+
+
+# NEW_LIST = np.array([])
+
+def predict_MICROLENS(INDEX,ERROR_PERCENT = 50):
+	global DATE,EVENT_LIST
+	star_gaia_fg_motion = motion_hpm_tops[INDEX]
+	star_gaia_bg_motion = motion_bgs_tops[INDEX]
+
+	s_fg = CRUX_STAR()
+	s_fg.set_motion_params(star_gaia_fg_motion)
+
+	s_bg = CRUX_STAR()
+	s_bg.set_motion_params(star_gaia_bg_motion)
+
+	EYE = CRUX_EYEPIECE()
+	EYE.add_star(s_fg)
+	EYE.add_star(s_bg)
+
+	timestamp,dist = EYE.predict_cluster_closest_approach(ERROR_SCOPE)
+	if dist < 10 and timestamp > 0:
+		print("FOUND LENSING EVENT! @",INDEX)
+		star_list = list(oneStarPair(INDEX))
+		star_list.append(timestamp)
+		EVENT_LIST.append(star_list)
+		# TIME_LIST.append(timestamp)/
 
 
 
@@ -184,14 +237,36 @@ def set_index(val):
 	INDEX = int(val)
 	draw_SCOPE(INDEX,DATE,ERROR_SCOPE)
 
-# img = EYE.draw_full(10)
-# cv2.imshow('eyepiece image',img)
+def closest_approach(val):
+	predict_and_draw_MICROLENS(INDEX,ERROR_SCOPE)
 
-# windowName = 'controls'
-cv2.namedWindow('controls')
-cv2.createTrackbar('DATE', 'controls', 0, 100, date_change)
-cv2.createTrackbar('INDEX', 'controls', 1, 10000, set_index)
-cv2.createTrackbar('ERROR', 'controls', 1, 100, error_change)
 
-k = cv2.waitKey(0) 
-cv2.destroyAllWindows()
+def predict(error):
+	global INDEX,EVENT_LIST
+	EVENT_LIST = []
+	for i in range(1,len(STAR_DATAFRAME)):
+		# INDEX = i
+		predict_MICROLENS(i,error)
+	headings = list(total_headings)
+	headings.append('TIMESTAMP')
+	print('headings')
+	EVENT_FRAME = pd.DataFrame(EVENT_LIST, columns = headings)
+	print(EVENT_FRAME)
+	EVENT_FRAME.to_csv('future_microlensing_events.csv',index=False)
+
+
+if len(sys.argv) < 3:
+	img = EYE.draw_full(10)
+	cv2.imshow('eyepiece image',img)
+
+	windowName = 'controls'
+	cv2.namedWindow('controls')
+	cv2.createTrackbar('DATE', 'controls', 0, 100, date_change)
+	cv2.createTrackbar('INDEX', 'controls', 1, 10000, set_index)
+	cv2.createTrackbar('ERROR', 'controls', 1, 100, error_change)
+	cv2.createTrackbar('PREDICT', 'controls', 0, 1, closest_approach)
+
+	k = cv2.waitKey(0) 
+	cv2.destroyAllWindows()
+elif sys.argv[2] == 'predict':
+	predict(0.1)
