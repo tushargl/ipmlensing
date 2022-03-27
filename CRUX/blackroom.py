@@ -435,7 +435,7 @@ class CRUX_EYEPIECE(object):
 		return ret_cen
 	def projectErrors(self,star,timestamp,e_margin = 20):
 		# s_cen = self.
-		s_num = 50
+		s_num = 10
 
 		ret_errs = []
 		for i in range(s_num):

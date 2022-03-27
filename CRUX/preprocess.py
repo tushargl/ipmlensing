@@ -18,17 +18,20 @@ from sklearn.preprocessing import normalize
 import itertools
 
 import math
+from multiprocessing.pool import ThreadPool as Pool
 
 
 from blackroom import CRUX_STAR,CRUX_EYEPIECE
 import cv2
+import time
+pool_size = 50  # your "parallelness"
 
 def XYZ_from_ra_dec(ra,dec,radius):
-    x = radius * math.cos(ra) *math.sin(dec)
-    y = radius * math.sin(ra) *math.sin(dec)
-    z = radius * math.cos(dec)
+	x = radius * math.cos(ra) *math.sin(dec)
+	y = radius * math.sin(ra) *math.sin(dec)
+	z = radius * math.cos(dec)
 
-    return (x,y,z)
+	return (x,y,z)
 
 # PROCESS
 
@@ -44,11 +47,11 @@ print("/CRUX/LOG> NUMPY ARRAY SHAPE:",STAR_ARR.shape)
 # print(STAR_ARR)
 
 def oneStarPair(n):
-    return STAR_ARR[n]
+	return STAR_ARR[n]
 
 
 def oneStarColumn(m):
-    return STAR_ARR[:,m]
+	return STAR_ARR[:,m]
 
 
 total_headings = oneStarPair(0)
@@ -235,7 +238,8 @@ def error_change(val):
 def set_index(val):
 	global INDEX
 	INDEX = int(val)
-	draw_SCOPE(INDEX,DATE,ERROR_SCOPE)
+	predict_and_draw_MICROLENS(INDEX,5)
+	# draw_SCOPE(INDEX,DATE,ERROR_SCOPE)
 
 def closest_approach(val):
 	predict_and_draw_MICROLENS(INDEX,ERROR_SCOPE)
@@ -243,16 +247,40 @@ def closest_approach(val):
 
 def predict(error):
 	global INDEX,EVENT_LIST
-	EVENT_LIST = []
-	for i in range(1,len(STAR_DATAFRAME)):
-		# INDEX = i
-		predict_MICROLENS(i,error)
 	headings = list(total_headings)
 	headings.append('TIMESTAMP')
+	
+
+	EVENT_LIST = []
+
+	def worker(index):
+		try:
+			predict_MICROLENS(index,error)
+		except:
+			print('error with index',index)
+
+	pool = Pool(pool_size)
+
+	for i in range(1,len(STAR_DATAFRAME)):
+	# for i in range(1,100):
+		pool.apply_async(worker, (i,))
+
+	pool.close()
+	pool.join()
+
+
 	print('headings')
 	EVENT_FRAME = pd.DataFrame(EVENT_LIST, columns = headings)
 	print(EVENT_FRAME)
-	EVENT_FRAME.to_csv('future_microlensing_events.csv',index=False)
+	EVENT_FRAME.to_csv('crux_output_{}.csv'.format(int(time.time())),index=False)
+
+	# for i in range(1,len(STAR_DATAFRAME)):
+	# 	# INDEX = i
+	# 	try:		
+	# 		predict_MICROLENS(i,error)
+	# 		if i % 10000 == 0:
+		# except e:
+		# 	print(e)
 
 
 if len(sys.argv) < 3:
@@ -262,7 +290,7 @@ if len(sys.argv) < 3:
 	windowName = 'controls'
 	cv2.namedWindow('controls')
 	cv2.createTrackbar('DATE', 'controls', 0, 100, date_change)
-	cv2.createTrackbar('INDEX', 'controls', 1, 10000, set_index)
+	cv2.createTrackbar('INDEX', 'controls', 1, len(STAR_DATAFRAME), set_index)
 	cv2.createTrackbar('ERROR', 'controls', 1, 100, error_change)
 	cv2.createTrackbar('PREDICT', 'controls', 0, 1, closest_approach)
 
